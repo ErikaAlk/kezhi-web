@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>刻纸底稿转换工具 · 阴刻 / 阳刻</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --panel:#fffdf8; --ink:#2a2723; --sub:#6f675c;
+    --line:#e3dccd; --accent:#b23b3b; --accent2:#7a8b6f;
+    --shadow:0 2px 10px rgba(60,50,35,.08); --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1a17; --panel:#26231f; --ink:#ece6da; --sub:#a49b8c;
+      --line:#39342c; --accent:#d76b6b; --accent2:#9fb08f; --shadow:0 2px 14px rgba(0,0,0,.4);}
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+  header{padding:20px 26px 14px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:20px;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  header h1 .seal{display:inline-flex;width:30px;height:30px;border-radius:7px;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+  header p{margin:6px 0 0;color:var(--sub);font-size:13px;max-width:900px}
+  .wrap{display:grid;grid-template-columns:350px 1fr;gap:0;min-height:calc(100vh - 76px)}
+  @media (max-width:920px){ .wrap{grid-template-columns:1fr} }
+  .side{padding:16px 18px;border-right:1px solid var(--line);overflow-y:auto;max-height:calc(100vh - 76px)}
+  @media (max-width:920px){ .side{border-right:none;border-bottom:1px solid var(--line);max-height:none} }
+  .drop{border:2px dashed var(--line);border-radius:var(--radius);padding:22px 14px;text-align:center;cursor:pointer;transition:.15s;background:var(--panel)}
+  .drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+  .drop .big{font-size:30px;line-height:1}
+  .drop .t{margin-top:6px;font-size:13px}
+  .drop .s{color:var(--sub);font-size:11.5px;margin-top:2px}
+  .group{margin-top:16px}
+  .group h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--sub);margin:0 0 9px;font-weight:600}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+  .row label{font-size:13px;white-space:nowrap}
+  .row .val{font-size:12px;color:var(--sub);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .rangewrap{flex:1;min-width:60px}
+  .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+  .seg button{flex:1;border:none;background:none;color:var(--sub);padding:7px 4px;border-radius:6px;cursor:pointer;font-size:12.5px;transition:.12s}
+  .seg button.on{background:var(--accent);color:#fff}
+  .switch{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;user-select:none;margin:9px 0}
+  .switch input{display:none}
+  .switch .track{width:36px;height:20px;border-radius:20px;background:var(--line);position:relative;transition:.15s;flex:none}
+  .switch .track::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .switch input:checked + .track{background:var(--accent2)}
+  .switch input:checked + .track::after{left:18px}
+  .btn{display:block;width:100%;border:none;border-radius:10px;padding:10px;font-size:14px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;transition:.12s}
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .hint{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.5}
+  .styleParams{display:none}
+  .styleParams.on{display:block}
+  .main{padding:16px 20px;overflow-y:auto}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:1150px){ .cards{grid-template-columns:1fr 1fr} }
+  @media (max-width:640px){ .cards{grid-template-columns:1fr} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .card .head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .card .head .name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
+  .card .head .tag{font-size:11px;color:var(--sub)}
+  .card .body{padding:12px;display:flex;align-items:center;justify-content:center;background:
+      repeating-conic-gradient(#0000 0% 25%, color-mix(in srgb,var(--line) 55%,transparent) 0% 50%) 50%/18px 18px;min-height:200px;flex:1}
+  .card canvas{max-width:100%;height:auto;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.15);background:#fff}
+  .card .foot{padding:8px 12px;border-top:1px solid var(--line);display:flex;gap:8px}
+  .card .foot .btn{padding:7px;font-size:12.5px}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:36px 10px}
+  .badge{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;border:1px solid var(--line);color:var(--sub);margin-left:2px}
+  .badge.ok{color:var(--accent2);border-color:color-mix(in srgb,var(--accent2) 45%,var(--line))}
+  .badge.warn{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .explain{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .explain h3{margin:0 0 10px;font-size:14px}
+  .explain .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:640px){ .explain .cols{grid-template-columns:1fr} }
+  .explain .cols>div{font-size:12.5px;color:var(--sub);line-height:1.6}
+  .explain b{color:var(--ink)}
+  .busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 72%,transparent);display:none;align-items:center;justify-content:center;z-index:9;flex-direction:column;gap:10px}
+  .busy.show{display:flex}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .busy div:last-child{font-size:13px;color:var(--ink)}
+  @media (max-width:760px){
+    header{padding:14px 16px 10px} header h1{font-size:17px} header p{font-size:12px}
+    .side,.main{padding:12px 14px}
+    input[type=range]{height:24px}
+    .btn{padding:12px} .seg button{padding:10px 4px;font-size:13px}
+    .card .body{min-height:auto} .switch{margin:12px 0}
+    .explain .cols{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="seal">刻</span>刻纸底稿转换工具 <span class="badge">阴刻 / 阳刻</span></h1>
+  <p>上传图片，自动转成可直接刻的黑白底稿——黑色是保留的纸，白色是刻掉镂空的部分。内置 OpenCV 图像内核，复杂彩图也能出干净线稿。全程本地处理，图片不上传。</p>
+</header>
+
+<div class="wrap">
+  <aside class="side">
+    <div class="drop" id="drop">
+      <div class="big">🖼️</div>
+      <div class="t">点击 / 拖拽 / 粘贴 上传图片</div>
+      <div class="s">线稿、插画、照片都行；颜色多也没关系</div>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="group">
+      <h3>转换风格</h3>
+      <div class="seg" id="segStyle">
+        <button data-v="line" class="on">线描</button>
+        <button data-v="mass">块面</button>
+        <button data-v="silhouette">剪影</button>
+      </div>
+      <div class="hint" id="styleHint"></div>
+    </div>
+
+    <!-- 线描参数 -->
+    <div class="group styleParams on" data-for="line">
+      <h3>线描参数</h3>
+      <div class="row"><label>取线门槛</label><div class="rangewrap"><input type="range" id="lineThresh" min="30" max="170" value="90"></div><div class="val" id="lineThreshV">90</div></div>
+      <div class="row"><label>降噪平滑</label><div class="rangewrap"><input type="range" id="lineSmooth" min="0" max="4" value="1"></div><div class="val" id="lineSmoothV">1</div></div>
+      <div class="hint">门槛越高线越少、越干净；越低线越多、越细。降噪平滑压掉杂线（毛发、纹理噪点）。</div>
+    </div>
+    <!-- 块面参数 -->
+    <div class="group styleParams" data-for="mass">
+      <h3>块面参数</h3>
+      <div class="row"><label>明暗平衡</label><div class="rangewrap"><input type="range" id="tonal" min="-60" max="60" value="0"></div><div class="val" id="tonalV">0</div></div>
+      <div class="row"><label>保边强度</label><div class="rangewrap"><input type="range" id="edgeKeep" min="1" max="5" value="3"></div><div class="val" id="edgeKeepV">3</div></div>
+      <label class="switch"><input type="checkbox" id="grooves"><span class="track"></span>加内部细节线沟</label>
+      <div class="hint">明暗平衡：向左黑更多、向右白更多。线沟：在黑块里刻出白线表现细节。块面偏厚重，适合要「面」的图。</div>
+    </div>
+    <!-- 剪影参数 -->
+    <div class="group styleParams" data-for="silhouette">
+      <h3>剪影参数</h3>
+      <label class="switch"><input type="checkbox" id="autoThresh" checked><span class="track"></span>自动阈值（Otsu）</label>
+      <div class="row" id="threshRow" style="opacity:.5"><label>明暗分界</label><div class="rangewrap"><input type="range" id="threshold" min="1" max="254" value="128"></div><div class="val" id="thresholdV">128</div></div>
+      <div class="hint">整体一个阈值，适合对比强烈、主体分明的图（纯色 logo、剪纸图样）。</div>
+    </div>
+
+    <div class="group">
+      <h3>通用</h3>
+      <label class="switch"><input type="checkbox" id="invert"><span class="track"></span>反相（黑白反了 / 主体偏亮时勾选）</label>
+      <div class="row"><label>线条 / 边缘加粗</label><div class="rangewrap"><input type="range" id="lineWidth" min="0" max="5" value="1"></div><div class="val" id="lineWidthV">1</div></div>
+      <div class="row"><label>去除杂点</label><div class="rangewrap"><input type="range" id="denoise" min="0" max="100" value="25"></div><div class="val" id="denoiseV">25</div></div>
+      <label class="switch"><input type="checkbox" id="bridge" checked><span class="track"></span>自动加连接筋（连孤岛，防掉块）</label>
+      <div class="row" id="bridgeRow"><label>连接筋粗细</label><div class="rangewrap"><input type="range" id="bridgeW" min="1" max="6" value="2"></div><div class="val" id="bridgeWV">2</div></div>
+    </div>
+
+    <div class="group">
+      <h3>输出</h3>
+      <div class="row"><label>底稿分辨率</label><div class="rangewrap"><input type="range" id="maxSize" min="500" max="1400" step="100" value="850"></div><div class="val" id="maxSizeV">850</div></div>
+      <button class="btn ghost" id="resetBtn" style="margin-top:8px">恢复默认参数</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="cards">
+      <div class="card">
+        <div class="head"><span class="name">📷 原图</span><span class="tag" id="origTag"></span></div>
+        <div class="body"><div class="empty" id="origEmpty">尚未上传</div><canvas id="cOrig" hidden></canvas></div>
+      </div>
+      <div class="card">
+        <div class="head"><span class="name">🔴 阳刻底稿</span><span class="tag" id="yangTag">保留正形</span></div>
+        <div class="body"><div class="empty" id="yangEmpty">等待图片</div><canvas id="cYang" hidden></canvas></div>
+        <div class="foot"><button class="btn" id="dlYangPng" disabled>下载 PNG</button><button class="btn ghost" id="dlYangSvg" disabled>SVG</button></div>
+      </div>
+      <div class="card">
+        <div class="head"><span class="name">⚫ 阴刻底稿</span><span class="tag" id="yinTag">保留底子</span></div>
+        <div class="body"><div class="empty" id="yinEmpty">等待图片</div><canvas id="cYin" hidden></canvas></div>
+        <div class="foot"><button class="btn" id="dlYinPng" disabled>下载 PNG</button><button class="btn ghost" id="dlYinSvg" disabled>SVG</button></div>
+      </div>
+    </div>
+
+    <div class="explain">
+      <h3>阴刻 vs 阳刻，怎么区分？</h3>
+      <div class="cols">
+        <div><b>阳刻（阳文）</b>：以<b>线</b>造型，「线线相连」。保留下来的黑线是主体，四周大量镂空，像用线勾出来的图。线不能断，要连成一整体。</div>
+        <div><b>阴刻（阴文）</b>：以<b>面</b>造型，「块块相连」。把线条本身刻掉（成为镂空的白线沟），保留大块底子。大片黑底上透出白线，厚重，基本是阳刻的「负形」。</div>
+      </div>
+      <div class="hint" style="margin-top:12px">刻纸是一整张纸，镂空后剩下的纸必须连在一起——本工具会自动找出「孤岛」（不与主体相连的保留块）并加一条细「连接筋」把它拉回主体，就是传统剪纸里的「留筋」。若某版本仍标 <span class="badge warn">未完全连通</span>，可调大「连接筋 / 加粗」，或调低「去除杂点」。</div>
+    </div>
+  </main>
+</div>
+
+<div class="busy" id="busy"><div class="spin"></div><div id="busyText">处理中…</div></div>
+
+<script>
+"use strict";
+// ============================================================
+//  刻纸底稿转换 —— 图像处理走 OpenCV.js(WASM)，连通性/连接筋用本地 JS
+//  keep[i]=1 表示保留的纸(输出黑)，0 表示镂空(输出白)
+// ============================================================
+const $ = id => document.getElementById(id);
+const DEFAULTS = {
+  style:'line', lineThresh:90, lineSmooth:1,               // 线描(Canny)
+  tonal:0, edgeKeep:3, grooves:false,                      // 块面(Otsu)
+  autoThresh:true, threshold:128,                          // 剪影
+  invert:false, lineWidth:1, denoise:25, bridge:true, bridgeW:2, maxSize:850,
+};
+// 手机(尤其老 iPhone)：处理尺寸调小，减轻 OpenCV 的内存/耗时压力，降低崩溃概率
+const isMobile = (window.matchMedia && matchMedia('(max-width: 760px)').matches) || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'');
+if(isMobile) DEFAULTS.maxSize = 620;
+const state = Object.assign({}, DEFAULTS);
+let cvReady=false, procTimer=null, pending=false;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+
+// ============ 二值(数组)算子：形态学 / 连通 / 连接筋 ============
+function dilateArr(b,w,h,r){ if(r<=0)return b.slice(); const t=new Uint8Array(w*h),o=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){const row=y*w; for(let x=0;x<w;x++){let v=0; for(let j=-r;j<=r;j++){const xx=x+j; if(xx<0||xx>=w)continue; if(b[row+xx]){v=1;break;}} t[row+x]=v;}}
+  for(let x=0;x<w;x++){ for(let y=0;y<h;y++){let v=0; for(let j=-r;j<=r;j++){const yy=y+j; if(yy<0||yy>=h)continue; if(t[yy*w+x]){v=1;break;}} o[y*w+x]=v;}}
+  return o; }
+function erodeArr(b,w,h,r){ if(r<=0)return b.slice(); const t=new Uint8Array(w*h),o=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){const row=y*w; for(let x=0;x<w;x++){let v=1; for(let j=-r;j<=r;j++){const xx=x+j; if(xx<0||xx>=w){v=0;break;} if(!b[row+xx]){v=0;break;}} t[row+x]=v;}}
+  for(let x=0;x<w;x++){ for(let y=0;y<h;y++){let v=1; for(let j=-r;j<=r;j++){const yy=y+j; if(yy<0||yy>=h){v=0;break;} if(!t[yy*w+x]){v=0;break;}} o[y*w+x]=v;}}
+  return o; }
+const openArr =(b,w,h,r)=>dilateArr(erodeArr(b,w,h,r),w,h,r);
+function connected(keep,w,h){ const labels=new Int32Array(w*h),sizes=[0],stack=new Int32Array(w*h); let cur=0;
+  for(let s=0;s<w*h;s++){ if(!keep[s]||labels[s])continue; cur++; let sp=0; stack[sp++]=s; labels[s]=cur; let cnt=0;
+    while(sp){ const p=stack[--sp]; cnt++; const x=p%w,y=(p/w)|0; const L=x>0,R=x<w-1,U=y>0,D=y<h-1;
+      if(L){const q=p-1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}} if(R){const q=p+1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}}
+      if(U){const q=p-w;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}} if(D){const q=p+w;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}}
+      if(L&&U){const q=p-w-1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}} if(R&&U){const q=p-w+1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}}
+      if(L&&D){const q=p+w-1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}} if(R&&D){const q=p+w+1;if(keep[q]&&!labels[q]){labels[q]=cur;stack[sp++]=q;}} }
+    sizes[cur]=cnt; }
+  return {labels,sizes,count:cur}; }
+function removeSmall(keep,w,h,minPx){ if(minPx<=1)return keep; const {labels,sizes}=connected(keep,w,h); const out=keep.slice();
+  for(let i=0;i<w*h;i++){ if(out[i]&&sizes[labels[i]]<minPx) out[i]=0; } return out; }
+function drawThick(keep,w,h,x0,y0,x1,y1,rad){ let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
+  const stamp=(cx,cy)=>{for(let j=-rad;j<=rad;j++)for(let i=-rad;i<=rad;i++){ if(i*i+j*j>rad*rad+rad)continue; const xx=cx+i,yy=cy+j; if(xx>=0&&xx<w&&yy>=0&&yy<h)keep[yy*w+xx]=1;}};
+  for(;;){ stamp(x,y); if(x===x1&&y===y1)break; const e2=2*err; if(e2>-dy){err-=dy;x+=sx;} if(e2<dx){err+=dx;y+=sy;} } }
+// 多源 BFS 求各孤岛到主体的最近落点；近的画一条直线连接筋，远又小的直接删（去背景碎屑、避免长桥）
+function addBridges(keep,w,h,rad,maxBridge,keepArea){ const N=w*h; const {labels,sizes,count}=connected(keep,w,h); if(count<=1)return{keep,comps:count};
+  let main=1; for(let c=1;c<=count;c++) if(sizes[c]>sizes[main])main=c;
+  const dist=new Int32Array(N).fill(-1),parent=new Int32Array(N).fill(-1),q=new Int32Array(N); let head=0,tail=0;
+  for(let i=0;i<N;i++){ if(labels[i]===main){dist[i]=0;q[tail++]=i;} }
+  while(head<tail){ const p=q[head++]; const x=p%w,y=(p/w)|0,nd=dist[p]+1;
+    const tn=qq=>{ if(dist[qq]===-1){dist[qq]=nd;parent[qq]=p;q[tail++]=qq;} };
+    if(x>0)tn(p-1); if(x<w-1)tn(p+1); if(y>0)tn(p-w); if(y<h-1)tn(p+w); }
+  const best={};
+  for(let i=0;i<N;i++){ const L=labels[i]; if(!L||L===main||dist[i]<0)continue; if(!best[L]||dist[i]<best[L].d)best[L]={d:dist[i],idx:i}; }
+  const drop=new Set();
+  for(const L in best){
+    if(best[L].d>maxBridge && sizes[L]<keepArea){ drop.add(+L); continue; }
+    let root=best[L].idx,g=0; while(labels[root]!==main && parent[root]!==-1 && g++<N) root=parent[root];
+    const bx=best[L].idx%w, by=(best[L].idx/w)|0; drawThick(keep,w,h,bx,by,root%w,(root/w)|0,rad);
+  }
+  if(drop.size) for(let i=0;i<N;i++){ if(drop.has(labels[i])) keep[i]=0; }
+  return {keep,comps:connected(keep,w,h).count}; }
+
+// ============ OpenCV 提取图案 ============
+function matToMask(mat,n){ const o=new Uint8Array(n),d=mat.data; for(let i=0;i<n;i++)o[i]=d[i]?1:0; return o; }
+function cvExtract(gray,w,h,trash){
+  const n=w*h; let pattern, grooves=null;
+  if(state.style==='line'){
+    const bil=new cv.Mat(); trash.push(bil);
+    const d=5+state.lineSmooth*2, sig=40+state.lineSmooth*25;
+    cv.bilateralFilter(gray,bil,d,sig,sig,cv.BORDER_DEFAULT);
+    const ed=new cv.Mat(); trash.push(ed);
+    const hi=state.lineThresh; cv.Canny(bil,ed,hi*0.45,hi);
+    const k=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(3,3)); trash.push(k);
+    cv.morphologyEx(ed,ed,cv.MORPH_CLOSE,k);
+    pattern=matToMask(ed,n);
+  } else if(state.style==='mass'){
+    let bil=new cv.Mat(); trash.push(bil);
+    cv.bilateralFilter(gray,bil,9,90,90,cv.BORDER_DEFAULT);
+    if(state.edgeKeep>=3){ const b2=new cv.Mat(); trash.push(b2); cv.bilateralFilter(bil,b2,9,90,90,cv.BORDER_DEFAULT); bil=b2; }
+    const tmp=new cv.Mat(); trash.push(tmp);
+    const t=cv.threshold(bil,tmp,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
+    const m=new cv.Mat(); trash.push(m);
+    cv.threshold(bil,m,clamp(t+state.tonal,0,255),255,cv.THRESH_BINARY_INV);
+    pattern=matToMask(m,n);
+    if(state.grooves){ const g=new cv.Mat(); trash.push(g); cv.Canny(bil,g,60,130);
+      const kk=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(2,2)); trash.push(kk); cv.dilate(g,g,kk); grooves=matToMask(g,n); }
+  } else {
+    const m=new cv.Mat(); trash.push(m);
+    if(state.autoThresh) cv.threshold(gray,m,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
+    else cv.threshold(gray,m,state.threshold,255,cv.THRESH_BINARY_INV);
+    pattern=matToMask(m,n);
+  }
+  return {pattern,grooves};
+}
+function finalizeKeep(pattern,w,h,polarity,grooves){
+  const n=w*h; let keep=new Uint8Array(n); const on=polarity==='yang'?1:0;
+  for(let i=0;i<n;i++) keep[i]=(pattern[i]?1:0)===on?1:0;
+  if(state.style==='mass' && grooves){ for(let i=0;i<n;i++) if(grooves[i]) keep[i]=0; }
+  if(state.style!=='line') keep=openArr(keep,w,h,1);
+  const base = state.style==='line'? 0.00008 : 0.0006;
+  const minPx = state.denoise<=0?0:Math.max(6,Math.round(n*(state.denoise/100)*base*4));
+  keep=removeSmall(keep,w,h,minPx);
+  let comps;
+  if(state.bridge){
+    const md = state.style==='line'? Math.round(Math.max(w,h)*0.08) : Math.max(w,h);
+    const ka = state.style==='line'? Math.round(n*0.0004) : 0;
+    const r=addBridges(keep,w,h,state.bridgeW,md,ka); keep=r.keep; comps=r.comps;
+  } else comps=connected(keep,w,h).count;
+  return {keep,comps};
+}
+function keepToCanvas(keep,w,h,canvas){ canvas.width=w;canvas.height=h; const ctx=canvas.getContext('2d');
+  const img=ctx.createImageData(w,h),d=img.data;
+  for(let i=0,p=0;i<w*h;i++,p+=4){ const v=keep[i]?0:255; d[p]=d[p+1]=d[p+2]=v; d[p+3]=255; } ctx.putImageData(img,0,0); }
+
+let lastResult={yang:null,yin:null,w:0,h:0};
+function process(){
+  if(!state.img) return;
+  if(!cvReady){ pending=true; return; }
+  $('busy').classList.add('show'); $('busyText').textContent='处理中…';
+  setTimeout(()=>{
+    const trash=[];
+    try{
+      const iw=state.img.naturalWidth, ih=state.img.naturalHeight;
+      const scale=Math.min(1,state.maxSize/Math.max(iw,ih));
+      const w=Math.max(1,Math.round(iw*scale)), h=Math.max(1,Math.round(ih*scale));
+      const off=document.createElement('canvas'); off.width=w; off.height=h;
+      off.getContext('2d',{willReadFrequently:true}).drawImage(state.img,0,0,w,h);
+      const src=cv.imread(off); trash.push(src);
+      const gray=new cv.Mat(); trash.push(gray); cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+      const {pattern,grooves}=cvExtract(gray,w,h,trash);
+      if(state.invert){ for(let i=0;i<w*h;i++) pattern[i]=pattern[i]?0:1; }
+      let pat=pattern; if(state.lineWidth>0) pat=dilateArr(pattern,w,h,state.lineWidth);
+      const yang=finalizeKeep(pat,w,h,'yang',grooves);
+      const yin =finalizeKeep(pat,w,h,'yin',grooves);
+      keepToCanvas(yang.keep,w,h,$('cYang')); keepToCanvas(yin.keep,w,h,$('cYin'));
+      lastResult={yang:yang.keep,yin:yin.keep,w,h};
+      const co=$('cOrig'); co.width=w;co.height=h; co.getContext('2d').drawImage(state.img,0,0,w,h);
+      co.hidden=false; $('origEmpty').style.display='none';
+      $('cYang').hidden=false; $('yangEmpty').style.display='none';
+      $('cYin').hidden=false; $('yinEmpty').style.display='none';
+      $('origTag').textContent=`${iw}×${ih} → ${w}×${h}`;
+      setConn('yangTag',yang.comps,'保留正形'); setConn('yinTag',yin.comps,'保留底子');
+      ['dlYangPng','dlYangSvg','dlYinPng','dlYinSvg'].forEach(id=>$(id).disabled=false);
+      if(isMobile){ try{ $('cYang').scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){} }
+    }catch(e){ console.error(e); alert('处理出错：'+(e&&e.message?e.message:e)); }
+    finally{ trash.forEach(m=>{try{m.delete();}catch(_){}}); $('busy').classList.remove('show'); }
+  },30);
+}
+function setConn(id,comps,base){ $(id).innerHTML = base+' '+(comps<=1?'<span class="badge ok">已连通</span>':`<span class="badge warn">${comps} 块·未连通</span>`); }
+function scheduleProcess(){ clearTimeout(procTimer); procTimer=setTimeout(process, 200); }
+
+// ============ 导出 ============
+function keepToSVG(keep,w,h){ let r='';
+  for(let y=0;y<h;y++){ let x=0; const row=y*w; while(x<w){ if(keep[row+x]){ let x0=x; while(x<w&&keep[row+x])x++; r+=`<rect x="${x0}" y="${y}" width="${x-x0}" height="1"/>`; } else x++; } }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">\n<rect width="${w}" height="${h}" fill="#fff"/>\n<g fill="#000">${r}</g>\n</svg>`; }
+function download(name,blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function exportPNG(keep,name){ const c=document.createElement('canvas'); keepToCanvas(keep,lastResult.w,lastResult.h,c); c.toBlob(b=>download(name,b),'image/png'); }
+function exportSVG(keep,name){ download(name,new Blob([keepToSVG(keep,lastResult.w,lastResult.h)],{type:'image/svg+xml'})); }
+
+// ============ UI ============
+const STYLE_HINT={
+  line:'线描：用 OpenCV 边缘检测勾出线稿，线线相连、连成整体，复杂图也能出干净线。阳刻＝留黑线，阴刻＝把线刻成白沟。',
+  mass:'块面：保边滤波＋Otsu 分出明暗块面，厚重。阳刻＝主体成块，阴刻＝留底子透出图案。适合要「面」的效果。',
+  silhouette:'剪影：整体一个阈值，适合对比强烈、主体分明的图。',
+};
+function loadImage(im){ state.img=im; if(cvReady) process(); else pending=true; }
+function loadFile(f){ if(!f||!f.type.startsWith('image/')){alert('请上传图片文件');return;}
+  const url=URL.createObjectURL(f),im=new Image(); im.onload=()=>{ loadImage(im); URL.revokeObjectURL(url); }; im.onerror=()=>alert('图片加载失败'); im.src=url; }
+window.__loadDataURL=u=>{ const im=new Image(); im.onload=()=>loadImage(im); im.src=u; };  // 便于自动化测试
+const drop=$('drop'),file=$('file');
+drop.onclick=()=>file.click();
+file.onchange=e=>{ if(e.target.files[0])loadFile(e.target.files[0]); };
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]); });
+document.addEventListener('paste',e=>{ const it=[...e.clipboardData.items].find(i=>i.type.startsWith('image/')); if(it)loadFile(it.getAsFile()); });
+
+function showStyleParams(){ document.querySelectorAll('.styleParams').forEach(p=>p.classList.toggle('on',p.dataset.for===state.style)); $('styleHint').textContent=STYLE_HINT[state.style]; }
+$('segStyle').querySelectorAll('button').forEach(b=>b.onclick=()=>{ $('segStyle').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); state.style=b.dataset.v; showStyleParams(); scheduleProcess(); });
+
+function bindRange(id,key,fmt){ const el=$(id),v=$(id+'V'); el.oninput=()=>{ state[key]=+el.value; if(v)v.textContent=fmt?fmt(+el.value):el.value; scheduleProcess(); }; }
+bindRange('lineThresh','lineThresh'); bindRange('lineSmooth','lineSmooth'); bindRange('tonal','tonal'); bindRange('edgeKeep','edgeKeep');
+bindRange('threshold','threshold'); bindRange('lineWidth','lineWidth'); bindRange('denoise','denoise'); bindRange('bridgeW','bridgeW'); bindRange('maxSize','maxSize');
+$('grooves').onchange=e=>{ state.grooves=e.target.checked; scheduleProcess(); };
+$('autoThresh').onchange=e=>{ state.autoThresh=e.target.checked; $('threshRow').style.opacity=e.target.checked?'.5':'1'; $('threshold').disabled=e.target.checked; scheduleProcess(); };
+$('invert').onchange=e=>{ state.invert=e.target.checked; scheduleProcess(); };
+$('bridge').onchange=e=>{ state.bridge=e.target.checked; $('bridgeRow').style.opacity=e.target.checked?'1':'.5'; scheduleProcess(); };
+$('threshold').disabled=true;
+
+$('dlYangPng').onclick=()=>exportPNG(lastResult.yang,'阳刻底稿.png');
+$('dlYinPng').onclick =()=>exportPNG(lastResult.yin,'阴刻底稿.png');
+$('dlYangSvg').onclick=()=>exportSVG(lastResult.yang,'阳刻底稿.svg');
+$('dlYinSvg').onclick =()=>exportSVG(lastResult.yin,'阴刻底稿.svg');
+
+$('resetBtn').onclick=()=>{ Object.assign(state,DEFAULTS);
+  $('lineThresh').value=90;$('lineThreshV').textContent=90; $('lineSmooth').value=1;$('lineSmoothV').textContent=1;
+  $('tonal').value=0;$('tonalV').textContent=0; $('edgeKeep').value=3;$('edgeKeepV').textContent=3; $('grooves').checked=false;
+  $('autoThresh').checked=true;$('threshold').value=128;$('thresholdV').textContent=128;$('threshold').disabled=true;$('threshRow').style.opacity='.5';
+  $('invert').checked=false; $('lineWidth').value=1;$('lineWidthV').textContent=1; $('denoise').value=25;$('denoiseV').textContent=25;
+  $('bridge').checked=true;$('bridgeRow').style.opacity='1';$('bridgeW').value=2;$('bridgeWV').textContent=2; $('maxSize').value=state.maxSize;$('maxSizeV').textContent=state.maxSize;
+  $('segStyle').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.v===DEFAULTS.style));
+  showStyleParams(); if(state.img)scheduleProcess(); };
+
+$('maxSize').value=state.maxSize; $('maxSizeV').textContent=state.maxSize;
+showStyleParams();
+
+// ============ OpenCV 加载 ============
+function onCvReady(){ cvReady=true; if(pending){ pending=false; process(); } }
+function cvLoaded(){
+  if(typeof cv==='undefined'){ alert('OpenCV 内核加载失败：找不到 opencv.js'); return; }
+  if(cv instanceof Promise){ cv.then(c=>{ window.cv=c; onCvReady(); }); }
+  else if(cv.Mat){ onCvReady(); }
+  else { cv['onRuntimeInitialized']=onCvReady; }
+}
+$('busyText').textContent='正在加载算法内核（约 10MB，首次打开稍慢）…';
+$('busy').classList.add('show');
+window.addEventListener('load',()=>{ // opencv.js 就绪后关掉初始遮罩
+  const iv=setInterval(()=>{ if(cvReady){ clearInterval(iv); if(!state.img)$('busy').classList.remove('show'); } },150);
+  setTimeout(()=>{ if(!cvReady){ /* 仍在加载，保持提示 */ } },200);
+});
+</script>
+<script async src="opencv.js" onload="cvLoaded()" onerror="document.getElementById('busyText').textContent='opencv.js 加载失败，请确认它和本网页在同一文件夹';"></script>
+</body>
+</html>
